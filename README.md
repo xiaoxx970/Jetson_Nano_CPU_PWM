@@ -1,5 +1,15 @@
-# RaspberryPi_CPU_PWM
-Raspberry Pi using software PWM to control the CPU fan speed.  
-使用软件PWM控制树莓派CPU风扇转速。
+# Jetson_Nano_CPU_PWM
+Jetson Nano using software PWM to control the CPU fan speed.  
+使用软件PWM控制Jetson Nano CPU风扇转速。
 
-#[使用方法](https://github.com/tankririri/RaspberryPi_CPU_PWM/wiki/%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95)
+创建`cpu-fan.service`文件在`/etc/systemd/system/`下：
+```sh
+[Unit]
+Description=Service to run cpu-fan contorol in system space
+
+[Service]
+ExecStart=/bin/bash -c "/脚本的/目录/cpu-fan.sh"
+
+[Install]
+WantedBy=default.target
+```

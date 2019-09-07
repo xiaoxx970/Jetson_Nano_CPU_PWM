@@ -1,25 +1,19 @@
 #!/bin/sh
-
-
-#设置运行状态文件
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+#作  者： xiaoxx
+#用  途： 通过温度检测自动控制Jetson nano PWM风扇转速
+#博  客： xiaoxx.cc
+#参  照： https://github.com/tankririri/RaspberryPi_CPU_PWM
 
 if [ -n "$1" ] ;then
 CONF=$1
 else
-CONF=/home/pi/.cpu-fan.conf
+CONF=/home/ljp/.cpu-fan.conf
 fi
-if [  -n "$2" ] ;then
-LOG=$2
-else
 LOG=/var/log/cpu-fan/cpu-fan.log
-fi
-
 
 #开机风扇全速运行
-#默认的pwm值范围是0~1023
-gpio mode 1 pwm
-gpio pwm 1 1023
+#默认的pwm值范围是0~255
+echo 255 > /sys/devices/pwm-fan/target_pwm
 
 
 #初始化参数
@@ -54,19 +48,19 @@ while true
   done < $CONF
   
   #计算pwm值，从变量set_temp_min设置的温度开始开启风扇，最低转速50%
-  pwm=$((($tmp-$set_temp_min)*512/($set_temp_max-$set_temp_min)+511))
-  if [ $pwm -le 511 ] ;then
-  pwm=511
+  pwm=$((($tmp-$set_temp_min)*128/($set_temp_max-$set_temp_min)+60))
+  if [ $pwm -le 60 ] ;then
+  pwm=60
   fi
 
   #设置pwm值上限
-  if [ $pwm -gt 1023 ] ;then
-  pwm=1023
+  if [ $pwm -gt 255 ] ;then
+  pwm=255
   fi
     
   #第一次超过设置温度全速开启风扇，防止风扇不能启动
   if [ $tmp -gt $set_temp_min ] && [ $fan -eq 0 ] && [ $MODE -eq 2 ] ;then
-  gpio pwm 1 1023
+  echo 255 > /sys/devices/pwm-fan/target_pwm
   fan=1
   echo "`date` temp=$tmp pwm=1023 MODE=$MODE CPU load=$load 第一次超过设置温度全速开启风扇" >> $LOG
   sleep 1
@@ -79,10 +73,9 @@ if [ $fan -eq 0 ] ;then
   if [ $tmp -le $shutdown_temp ] && [ $MODE -eq 2 ] ;then
   pwm=0
   fan=0
-  gpio mode 1 pwm
-  gpio pwm 1 $pwm
-  sleep 5
+  echo $pwm > /sys/devices/pwm-fan/target_pwm
   echo "`date` temp=$tmp pwm=$pwm MODE=$MODE CPU load=$load 小于设置温度关闭风扇 " >> $LOG
+  sleep 5
 else
 
   #检查MODE，为0时关闭风扇
@@ -93,24 +86,16 @@ else
   
   #检查MODE，为1时持续开启风扇最高转速
   if [ $MODE -eq 1 ] ;then
-  pwm=1023
+  pwm=255
   fan=1
   fi
   fi
 
-  gpio mode 1 pwm
-  gpio pwm 1 $pwm
+  echo $pwm > /sys/devices/pwm-fan/target_pwm
     
-  #输出日志
-if [ $pwm -eq 0 ] ;then
-  echo "`date` temp=$tmp pwm=$pwm MODE=$MODE CPU load=$load 小于设置温度关闭风扇 " >> $LOG
-else
-  echo "`date` temp=$tmp pwm=$pwm MODE=$MODE CPU load=$load 大于设置温度持续开启风扇" >> $LOG
-fi
-
 loadavg=`cat /proc/loadavg`
 awk=`cat /proc/loadavg | awk '{print $0}'`
-  echo "`date` $loadavg $awk load=$load "
+  echo "`date` temp=$tmp pwm=$pwm load=$load "
   #每5秒钟检查一次温度
   sleep 5
 
